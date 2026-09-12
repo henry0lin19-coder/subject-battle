@@ -1,0 +1,1304 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>理化力學大對決：槓桿與機械之戰</title>
+    <!-- Supabase JS SDK v2 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --primary-color: #3b82f6;
+            --primary-dark: #1d4ed8;
+            --secondary-color: #f59e0b;
+            --danger-color: #ef4444;
+            --success-color: #10b981;
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-color: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow-x: hidden;
+        }
+
+        /* 頂部 fixed 署名與連線狀態 */
+        .top-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 40px;
+            background: rgba(15, 23, 42, 0.9);
+            backdrop-filter: blur(8px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 16px;
+            font-size: 14px;
+            z-index: 100;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .author-tag {
+            color: var(--secondary-color);
+            font-weight: bold;
+        }
+
+        .db-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #64748b;
+        }
+
+        .status-dot.connected {
+            background-color: var(--success-color);
+            box-shadow: 0 0 8px var(--success-color);
+        }
+
+        /* 手機直向提示畫面 */
+        #orientation-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background-color: rgba(15, 23, 42, 0.98);
+            z-index: 9999;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 20px;
+        }
+
+        #orientation-overlay .icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+            animation: rotate 2s infinite ease-in-out;
+        }
+
+        @keyframes rotate {
+            0% { transform: rotate(0deg); }
+            50% { transform: rotate(90deg); }
+            100% { transform: rotate(0deg); }
+        }
+
+        @media (max-width: 900px) and (orientation: portrait) {
+            #orientation-overlay {
+                display: flex;
+            }
+        }
+
+        /* 主容器與畫面切換 */
+        .app-container {
+            width: 100%;
+            max-width: 1000px;
+            min-height: calc(100vh - 40px);
+            margin-top: 40px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .screen {
+            display: none;
+            width: 100%;
+            max-width: 600px;
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+        }
+
+        .screen.active {
+            display: block;
+        }
+
+        h1 {
+            font-size: 26px;
+            color: #60a5fa;
+            margin-bottom: 8px;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            font-size: 14px;
+            margin-bottom: 24px;
+        }
+
+        /* 輸入框與通用按鈕 */
+        .input-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        label {
+            display: block;
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px 16px;
+            border-radius: 8px;
+            border: 1px solid #334155;
+            background-color: #0f172a;
+            color: white;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--primary-color);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-dark);
+        }
+
+        .btn-danger {
+            background-color: var(--danger-color);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background-color: #dc2626;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* 大廳列表 */
+        .lobby-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .room-list {
+            max-height: 300px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .room-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: #0f172a;
+            border-radius: 8px;
+            border: 1px solid #334155;
+        }
+
+        .room-info {
+            text-align: left;
+        }
+
+        .room-host {
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        .room-code {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .no-rooms {
+            padding: 30px;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        /* 等待畫面 */
+        .loading-spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid #334155;
+            border-top-color: var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 24px auto;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 對戰畫面 (Battle Screen) */
+        #screen-battle {
+            max-width: 900px;
+            width: 100%;
+            padding: 16px;
+        }
+
+        .hud {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 16px;
+            align-items: center;
+            margin-bottom: 16px;
+            background: #0f172a;
+            padding: 12px;
+            border-radius: 12px;
+        }
+
+        .player-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .player-card.right {
+            flex-direction: row-reverse;
+            text-align: right;
+        }
+
+        .avatar {
+            font-size: 32px;
+            background: #334155;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .player-details {
+            flex: 1;
+        }
+
+        .player-name {
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 120px;
+        }
+
+        .hp-bar-container {
+            width: 100%;
+            height: 12px;
+            background-color: #334155;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .hp-bar-fill {
+            height: 100%;
+            background-color: var(--danger-color);
+            width: 100%;
+            transition: width 0.3s ease;
+        }
+
+        .score-badge {
+            font-size: 12px;
+            color: var(--secondary-color);
+            margin-top: 2px;
+            font-weight: bold;
+        }
+
+        .vs-badge {
+            font-size: 20px;
+            font-weight: 900;
+            color: var(--secondary-color);
+            font-style: italic;
+        }
+
+        /* 題目卡片 */
+        .question-card {
+            background: #0f172a;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+            min-height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #334155;
+        }
+
+        .question-text {
+            font-size: 18px;
+            font-weight: bold;
+            line-height: 1.5;
+            color: #f8fafc;
+        }
+
+        /* 答案選項格 */
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .option-btn {
+            background: #1e293b;
+            border: 2px solid #334155;
+            color: white;
+            padding: 16px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            text-align: left;
+            display: flex;
+            align-items: center;
+        }
+
+        .option-btn:hover:not(:disabled) {
+            border-color: var(--primary-color);
+            background: #334155;
+        }
+
+        .option-btn:active:not(:disabled) {
+            transform: scale(0.98);
+        }
+
+        /* 動畫效果 */
+        .shake {
+            animation: shake 0.4s ease-in-out;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-8px); }
+            40%, 80% { transform: translateX(8px); }
+        }
+
+        .hit-flash {
+            animation: flashRed 0.4s ease-in-out;
+        }
+
+        @keyframes flashRed {
+            0%, 100% { background: #0f172a; }
+            50% { background: rgba(239, 68, 68, 0.4); }
+        }
+
+        /* Modal Overlay */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 16px;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-box {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 32px;
+            max-width: 450px;
+            width: 100%;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+        }
+
+        .result-title {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 12px;
+        }
+
+        .result-title.win {
+            color: var(--success-color);
+        }
+
+        .result-title.lose {
+            color: var(--danger-color);
+        }
+
+        .celebrate-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+        }
+
+        .toast-msg {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 23, 42, 0.9);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            border: 1px solid var(--primary-color);
+            z-index: 2000;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .toast-msg.show {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 頂部資訊列 -->
+    <div class="top-bar">
+        <div class="author-tag">1000老師</div>
+        <div class="db-status">
+            <div id="status-dot" class="status-dot"></div>
+            <span id="status-text">正在連線至 Supabase...</span>
+        </div>
+    </div>
+
+    <!-- 手機直向提示 -->
+    <div id="orientation-overlay">
+        <div class="icon">↻</div>
+        <h2>請將手機旋轉至橫向</h2>
+        <p style="margin-top: 8px; color: var(--text-muted);">獲得最佳的對戰遊戲體驗</p>
+    </div>
+
+    <!-- Toast 訊息通知 -->
+    <div id="toast" class="toast-msg"></div>
+
+    <div class="app-container">
+
+        <!-- 1. 登入/暱稱畫面 -->
+        <div id="screen-login" class="screen active">
+            <h1>理化力學大對決</h1>
+            <p class="subtitle">槓桿原理與簡單機械 雙人線上即時對戰</p>
+            <div class="input-group">
+                <label for="input-nickname">請輸入您的暱稱 (1-20字)：</label>
+                <input type="text" id="input-nickname" placeholder="例如：力學小霸王" maxlength="20">
+            </div>
+            <button id="btn-enter-lobby" class="btn btn-primary" onclick="handleEnterLobby()">進入遊戲大廳</button>
+        </div>
+
+        <!-- 2. 遊戲大廳 Screen -->
+        <div id="screen-lobby" class="screen">
+            <div class="lobby-header">
+                <div>
+                    <h2 id="lobby-welcome" style="font-size: 18px; text-align: left;">玩家：---</h2>
+                    <p style="font-size: 12px; color: var(--text-muted); text-align: left;">選擇房間加入對戰或建立新房間</p>
+                </div>
+                <button class="btn btn-primary" style="width: auto; padding: 8px 16px;" onclick="handleCreateRoom()">+ 建立房間</button>
+            </div>
+            <div id="room-list" class="room-list">
+                <div class="no-rooms">正在載入對戰房間...</div>
+            </div>
+        </div>
+
+        <!-- 3. 等待對手畫面 -->
+        <div id="screen-waiting" class="screen">
+            <h2>等待對手加入中</h2>
+            <p class="subtitle">請將房間保持在開啟狀態，等待第二位玩家進入</p>
+            <div class="loading-spinner"></div>
+            <p id="waiting-room-code" style="font-size: 14px; color: var(--secondary-color); margin-bottom: 20px;"></p>
+            <button class="btn btn-danger" onclick="handleCancelRoom()">取消房間並返回</button>
+        </div>
+
+        <!-- 4. 戰鬥畫面 -->
+        <div id="screen-battle" class="screen">
+            <div id="hud-container" class="hud">
+                <!-- 我方 -->
+                <div class="player-card">
+                    <div id="p1-avatar" class="avatar">🐱</div>
+                    <div class="player-details">
+                        <div id="p1-name" class="player-name">我方</div>
+                        <div class="hp-bar-container">
+                            <div id="p1-hp-fill" class="hp-bar-fill"></div>
+                        </div>
+                        <div id="p1-score" class="score-badge">得分: 0</div>
+                    </div>
+                </div>
+                <div class="vs-badge">VS</div>
+                <!-- 對手 -->
+                <div class="player-card right">
+                    <div id="p2-avatar" class="avatar">🐶</div>
+                    <div class="player-details">
+                        <div id="p2-name" class="player-name">對手</div>
+                        <div class="hp-bar-container">
+                            <div id="p2-hp-fill" class="hp-bar-fill"></div>
+                        </div>
+                        <div id="p2-score" class="score-badge">得分: 0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 題目區域 -->
+            <div class="question-card">
+                <div id="question-text" class="question-text">題目載入中...</div>
+            </div>
+
+            <!-- 選項按鈕 -->
+            <div class="options-grid">
+                <button class="option-btn" onclick="handleSelectAnswer(0)"><span id="opt-0">A. 載入中</span></button>
+                <button class="option-btn" onclick="handleSelectAnswer(1)"><span id="opt-1">B. 載入中</span></button>
+                <button class="option-btn" onclick="handleSelectAnswer(2)"><span id="opt-2">C. 載入中</span></button>
+                <button class="option-btn" onclick="handleSelectAnswer(3)"><span id="opt-3">D. 載入中</span></button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 結果彈窗 Modal -->
+    <div id="modal-result" class="modal-overlay">
+        <div class="modal-box">
+            <div id="result-icon" class="celebrate-icon">🏆</div>
+            <div id="result-title" class="result-title win">對決獲勝！</div>
+            <p id="result-desc" style="color: var(--text-muted); margin-bottom: 24px;">你成功的擊敗了對手！物理力學概念非常紮實！</p>
+            <button class="btn btn-primary" onclick="returnToLobby()">回到遊戲大廳</button>
+        </div>
+    </div>
+
+    <!-- 斷線彈窗 Modal -->
+    <div id="modal-disconnect" class="modal-overlay">
+        <div class="modal-box">
+            <div class="celebrate-icon">🔌</div>
+            <div class="result-title lose" style="color: var(--secondary-color);">對手已斷線</div>
+            <p style="color: var(--text-muted); margin-bottom: 24px;">對手已離開遊戲或網路連線中斷。</p>
+            <button class="btn btn-primary" onclick="returnToLobby()">回到遊戲大廳</button>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 二、Supabase 連線憑證
+        // ==========================================
+        const SUPABASE_URL = 'https://ghlopvjdbmwhmshxuzjb.supabase.co';
+        const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_eXPslOTJRg1By9dqQMkbmg_WINucmEP';
+
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+        // ==========================================
+        // 題目庫：九年級理化「槓桿原理與簡單機械」
+        // ==========================================
+        const QUESTION_BANK = [
+            {
+                question: "關於「第一類槓桿」（支點在中間），下列何者為其典型範例？",
+                options: ["剪刀", "開瓶器", "鑷子", "裁紙刀"],
+                correctIndex: 0
+            },
+            {
+                question: "關於「第二類槓桿」（抗力點在中間），下列何者為其主要優點？",
+                options: ["必定省力", "必定省距離", "改變力的方向", "不必施加力矩"],
+                correctIndex: 0
+            },
+            {
+                question: "使用鑷子夾取細小零件時，鑷子屬於哪一種槓桿應用？",
+                options: ["費力槓桿", "省力槓桿", "不省力不費力槓桿", "省功槓桿"],
+                correctIndex: 0
+            },
+            {
+                question: "關於「定滑輪」的使用效果，下列敘述何者正確？",
+                options: ["只能改變力的方向，不省力也不費力", "可省力一半", "可以達到省功的目的", "施力移動距離等於重物升高距離的兩倍"],
+                correctIndex: 0
+            },
+            {
+                question: "使用單一「動滑輪」抬升重物時（忽略滑輪重），下列何者正確？",
+                options: ["可以省力一半，但費距離", "可以省距離，但費力", "不省力也不費力", "可以省功"],
+                correctIndex: 0
+            },
+            {
+                question: "關於「輪軸」的應用，若在「軸」上施力帶動「輪」轉動，其效果為何？",
+                options: ["費力但省距離（省時）", "省力但費距離", "省力且省功", "不改變施力大小"],
+                correctIndex: 0
+            },
+            {
+                question: "日常生活中常見的水龍頭旋鈕開關，是利用哪一種簡單機械原理？",
+                options: ["輪軸", "斜面", "定滑輪", "第三類槓桿"],
+                correctIndex: 0
+            },
+            {
+                question: "沿著坡度較平緩的斜面將重物推至高處，比起直接垂直抬高，有何優點？",
+                options: ["可以省力", "可以省功", "可以省移動距離", "可以省時間"],
+                correctIndex: 0
+            },
+            {
+                question: "螺絲釘上的螺紋本質上是哪一種簡單機械的變形應用？",
+                options: ["斜面", "輪軸", "槓桿", "滑輪"],
+                correctIndex: 0
+            },
+            {
+                question: "關於「功」與「簡單機械」的關係，下列敘述何者完全正確？",
+                options: ["任何簡單機械都無法省功", "省力機械可以省功", "動滑輪可以減少對物體做的功", "輪軸比槓桿更能省功"],
+                correctIndex: 0
+            },
+            {
+                question: "用拔釘器拔除鐵釘時，拔釘器屬於哪一種機械？",
+                options: ["省力槓桿", "費力槓桿", "定滑輪", "斜面"],
+                correctIndex: 0
+            },
+            {
+                question: "裁紙刀裁切紙張時，將紙張盡可能靠近轉軸（支點）擺放，目的是什麼？",
+                options: ["減小抗力臂以省力", "增加施力臂以省力", "增加抗力移動距離", "改變支點位置"],
+                correctIndex: 0
+            },
+            {
+                question: "天平衡量物體質量時，主要是利用何種物理原理？",
+                options: ["槓桿原理（力矩平衡）", "帕斯卡原理", "阿基米德浮力原理", "動量守恆定律"],
+                correctIndex: 0
+            },
+            {
+                question: "當槓桿達成靜力平衡（力矩平衡）時，代表什麼意義？",
+                options: ["順時針力矩大小等於逆時針力矩大小", "施力大小等於抗力大小", "施力臂大小等於抗力臂大小", "合力必定等於零"],
+                correctIndex: 0
+            },
+            {
+                question: "盤山公路（山路環繞螺旋上升）是運用哪種簡單機械原理達到省力目的？",
+                options: ["斜面", "輪軸", "動滑輪", "費力槓桿"],
+                correctIndex: 0
+            },
+            {
+                question: "下列何種工具屬於「費力槓桿」（第三類槓桿，施力點在中間）？",
+                options: ["掃帚", "開瓶器", "鍘刀", "拔釘器"],
+                correctIndex: 0
+            },
+            {
+                question: "一槓桿施力臂長 50cm，抗力臂長 10cm，欲提起 100kgw 的重物，最少需施力多少 kgw？",
+                options: ["20 kgw", "500 kgw", "100 kgw", "50 kgw"],
+                correctIndex: 0
+            },
+            {
+                question: "若使用動滑輪提升 60 公斤重的物體，忽略滑輪重與摩擦力，最少需要多少公斤重的拉力？",
+                options: ["30 kgw", "60 kgw", "120 kgw", "15 kgw"],
+                correctIndex: 0
+            },
+            {
+                question: "斜面的傾角越小（坡度越平緩），施力將重物推至頂端時會產生何種變化？",
+                options: ["越省力，但推動距離越長", "越費力，但推動距離越短", "做功越少", "所需的力大小不變"],
+                correctIndex: 0
+            },
+            {
+                question: "腳踏車的大齒輪（踏板處）帶動小齒輪（後輪處）旋轉時，屬於何種應用？",
+                options: ["輪帶動軸，費力省距離", "輪帶動軸，省力費距離", "軸帶動輪，省力", "軸帶動輪，省功"],
+                correctIndex: 0
+            },
+            {
+                question: "指甲剪的前端剪刀構造，結合了哪兩種簡單機械原理？",
+                options: ["槓桿與斜面", "輪軸與滑輪", "滑輪與斜面", "輪軸與槓桿"],
+                correctIndex: 0
+            },
+            {
+                question: "下列何者「無法」透過簡單機械來改變？",
+                options: ["做功的總能量", "施力的大小", "施力的方向", "物體移動的距離"],
+                correctIndex: 0
+            }
+        ];
+
+        // ==========================================
+        // 全域狀態變數
+        // ==========================================
+        let clientToken = localStorage.getItem('sequence_battle_client_token');
+        if (!clientToken) {
+            clientToken = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'client-' + Math.random().toString(36).substring(2, 15);
+            localStorage.setItem('sequence_battle_client_token', clientToken);
+        }
+
+        let nickname = '';
+        let currentScreen = 'login';
+        let currentRoomId = null;
+        let currentSeat = null;
+        let currentQuestion = null;
+        let lastEventId = 0;
+        let latestGameState = null;
+
+        let lobbyChannel = null;
+        let gameChannel = null;
+        let heartbeatTimer = null;
+        let disconnectTimer = null;
+        let opponentWasPresent = false;
+
+        const AVATARS = ['🐱', '🐶', '🐰', '🐻', '🦊', '🐼', '🐧', '🐸'];
+
+        // ==========================================
+        // 初始化與連線檢查
+        // ==========================================
+        window.addEventListener('DOMContentLoaded', () => {
+            checkDatabaseConnection();
+            setupLobbyRealtime();
+        });
+
+        async function checkDatabaseConnection() {
+            try {
+                const { data, error } = await supabase.from('rooms').select('id').limit(1);
+                const dot = document.getElementById('status-dot');
+                const text = document.getElementById('status-text');
+                if (error) throw error;
+                dot.classList.add('connected');
+                text.innerText = '資料庫已連接';
+            } catch (err) {
+                console.error("DB Connection error:", err);
+                document.getElementById('status-text').innerText = '連線失敗，請重新整理';
+            }
+        }
+
+        // ==========================================
+        // 畫面切換控制
+        // ==========================================
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            const target = document.getElementById(`screen-${screenId}`);
+            if (target) target.classList.add('active');
+            currentScreen = screenId;
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // ==========================================
+        // 一、登入 / 進入大廳
+        // ==========================================
+        function handleEnterLobby() {
+            const input = document.getElementById('input-nickname');
+            const val = input.value.trim();
+            if (val.length < 1 || val.length > 20) {
+                alert('請輸入 1 至 20 個字的暱稱');
+                return;
+            }
+            nickname = val;
+            document.getElementById('lobby-welcome').innerText = `玩家：${nickname}`;
+            showScreen('lobby');
+            fetchLiveRooms();
+        }
+
+        // ==========================================
+        // 二、大廳與房間列表
+        // ==========================================
+        async function fetchLiveRooms() {
+            try {
+                const { data, error } = await supabase.rpc('list_live_rooms');
+                if (error) throw error;
+                renderRoomList(data || []);
+            } catch (err) {
+                console.error("fetchLiveRooms error:", err);
+            }
+        }
+
+        function renderRoomList(rooms) {
+            const container = document.getElementById('room-list');
+            if (rooms.length === 0) {
+                container.innerHTML = `<div class="no-rooms">目前沒有等待中的房間，快點擊上方「建立房間」吧！</div>`;
+                return;
+            }
+            container.innerHTML = rooms.map(r => `
+                <div class="room-item">
+                    <div class="room-info">
+                        <div class="room-host">房主：${escapeHtml(r.host_nickname)}</div>
+                        <div class="room-code">房間代碼: ${r.room_code}</div>
+                    </div>
+                    <button class="btn btn-primary" style="width:auto; padding:6px 14px;" onclick="handleJoinProbe('${r.id}')">對戰</button>
+                </div>
+            `).join('');
+        }
+
+        function setupLobbyRealtime() {
+            lobbyChannel = supabase.channel('public:rooms')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms' }, () => {
+                    if (currentScreen === 'lobby') fetchLiveRooms();
+                })
+                .subscribe();
+        }
+
+        // ==========================================
+        // 三、建立房間與 Heartbeat
+        // ==========================================
+        async function handleCreateRoom() {
+            try {
+                const { data, error } = await supabase.rpc('create_room', {
+                    p_nickname: nickname,
+                    p_client_token: clientToken
+                });
+
+                if (error) throw error;
+
+                currentRoomId = data.room_id;
+                currentSeat = 1;
+                document.getElementById('waiting-room-code').innerText = `房間代碼：${data.room_code}`;
+                showScreen('waiting');
+
+                // 啟動 3 秒 Heartbeat
+                startHeartbeat();
+                // 訂閱配對 channel 並監聽 join_probe 握手與遊戲開始
+                subscribeGameChannel(currentRoomId);
+            } catch (err) {
+                console.error("create_room error:", err);
+                alert('建立房間失敗：' + (err.message || '網路錯誤'));
+            }
+        }
+
+        function startHeartbeat() {
+            stopHeartbeat();
+            heartbeatTimer = setInterval(async () => {
+                if (currentScreen === 'waiting' && currentRoomId && currentSeat === 1) {
+                    try {
+                        await supabase.rpc('heartbeat_room', {
+                            p_room_id: currentRoomId,
+                            p_client_token: clientToken
+                        });
+                    } catch (e) {
+                        console.warn("Heartbeat warn:", e);
+                    }
+                } else {
+                    stopHeartbeat();
+                }
+            }, 3000);
+        }
+
+        function stopHeartbeat() {
+            if (heartbeatTimer) clearInterval(heartbeatTimer);
+            heartbeatTimer = null;
+        }
+
+        async function handleCancelRoom() {
+            if (!currentRoomId) return;
+            try {
+                await supabase.rpc('cancel_room', {
+                    p_room_id: currentRoomId,
+                    p_client_token: clientToken
+                });
+            } catch (err) {
+                console.warn("cancel_room warn:", err);
+            } finally {
+                cleanupOldSession();
+                showScreen('lobby');
+                fetchLiveRooms();
+            }
+        }
+
+        // ==========================================
+        // 四、加入房間前的 2 秒 Handshake (join_probe)
+        // ==========================================
+        async function handleJoinProbe(roomId) {
+            const probeId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'probe-' + Math.random();
+            const tempChannel = supabase.channel(`game-${roomId}`);
+
+            let ackReceived = false;
+
+            tempChannel.on('broadcast', { event: 'host_ack' }, (payload) => {
+                if (payload.payload && payload.payload.probe_id === probeId) {
+                    ackReceived = true;
+                }
+            });
+
+            await tempChannel.subscribe();
+
+            // 發送 probe
+            await tempChannel.send({
+                type: 'broadcast',
+                event: 'join_probe',
+                payload: { probe_id: probeId }
+            });
+
+            // 等待 2000ms
+            setTimeout(async () => {
+                await supabase.removeChannel(tempChannel);
+                if (ackReceived) {
+                    executeJoinRoom(roomId);
+                } else {
+                    showToast('房主已離開，請選其他房間。');
+                    fetchLiveRooms();
+                }
+            }, 2000);
+        }
+
+        async function executeJoinRoom(roomId) {
+            try {
+                const { data, error } = await supabase.rpc('join_room', {
+                    p_room_id: roomId,
+                    p_nickname: nickname,
+                    p_client_token: clientToken
+                });
+
+                if (error) {
+                    if (error.message.includes('HOST_OFFLINE')) {
+                        showToast('房主已離線，請選其他房間。');
+                        fetchLiveRooms();
+                        return;
+                    }
+                    throw error;
+                }
+
+                currentRoomId = roomId;
+                currentSeat = 2;
+                subscribeGameChannel(currentRoomId);
+            } catch (err) {
+                console.error("join_room error:", err);
+                alert('加入房間失敗：' + (err.message || '房間可能已滿或失效'));
+                fetchLiveRooms();
+            }
+        }
+
+        // ==========================================
+        // 五、Game Channel, Presence & Realtime Sync
+        // ==========================================
+        function subscribeGameChannel(roomId) {
+            if (gameChannel) supabase.removeChannel(gameChannel);
+
+            gameChannel = supabase.channel(`game-${roomId}`);
+
+            // 1. 廣播監聽 (Probe & Ack)
+            gameChannel.on('broadcast', { event: 'join_probe' }, (payload) => {
+                if (currentSeat === 1 && currentScreen === 'waiting') {
+                    gameChannel.send({
+                        type: 'broadcast',
+                        event: 'host_ack',
+                        payload: { probe_id: payload.payload.probe_id }
+                    });
+                }
+            });
+
+            // 2. Presence 斷線偵測
+            gameChannel.on('presence', { event: 'sync' }, () => {
+                const state = gameChannel.presenceState();
+                let opponentFound = false;
+
+                for (const key in state) {
+                    state[key].forEach(presence => {
+                        if (presence.client_token !== clientToken) {
+                            opponentFound = true;
+                        }
+                    });
+                }
+
+                if (opponentFound) {
+                    opponentWasPresent = true;
+                    if (disconnectTimer) {
+                        clearTimeout(disconnectTimer);
+                        disconnectTimer = null;
+                    }
+                } else if (opponentWasPresent && currentScreen === 'battle') {
+                    if (!disconnectTimer) {
+                        disconnectTimer = setTimeout(() => {
+                            if (currentScreen === 'battle') {
+                                document.getElementById('modal-disconnect').classList.add('active');
+                            }
+                        }, 5000); // 5秒 Grace Period
+                    }
+                }
+            });
+
+            // 3. Database Changes: game_state
+            gameChannel.on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'game_state',
+                filter: `room_id=eq.${roomId}`
+            }, (payload) => {
+                handleGameStateUpdate(payload.new);
+            });
+
+            gameChannel.subscribe(async (status) => {
+                if (status === 'SUBSCRIBED') {
+                    await gameChannel.track({
+                        client_token: clientToken,
+                        seat: currentSeat,
+                        nickname: nickname
+                    });
+
+                    // 查詢當前狀態
+                    const { data } = await supabase.from('game_state').select('*').eq('room_id', roomId).single();
+                    if (data) handleGameStateUpdate(data);
+                }
+            });
+        }
+
+        // ==========================================
+        // 六、遊戲狀態變更處理 (HUD, 動畫, 勝負)
+        // ==========================================
+        function handleGameStateUpdate(state) {
+            if (!state) return;
+            latestGameState = state;
+
+            // 若 status 為 playing 且目前在 waiting 畫面，則轉入 Battle
+            if (state.status === 'playing' && currentScreen !== 'battle') {
+                stopHeartbeat();
+                setupBattleScreen(state);
+                showScreen('battle');
+            }
+
+            if (currentScreen === 'battle') {
+                updateHUD(state);
+
+                // 處理攻擊 / 傷害特效
+                if (state.last_event_id && state.last_event_id !== lastEventId) {
+                    lastEventId = state.last_event_id;
+                    triggerBattleFX(state.last_event_type, state.last_event_seat);
+                }
+
+                // 勝負判定
+                if (state.status === 'finished') {
+                    setTimeout(() => {
+                        showResultModal(state.winner_seat);
+                    }, 500);
+                }
+            }
+        }
+
+        // Deterministic Avatars (相同 roomId 分配相同角色)
+        function getAvatarsByRoomId(roomId) {
+            let hash = 0;
+            for (let i = 0; i < roomId.length; i++) {
+                hash = (hash << 5) - hash + roomId.charCodeAt(i);
+                hash |= 0;
+            }
+            const idx1 = Math.abs(hash) % AVATARS.length;
+            let idx2 = (Math.abs(hash >> 3) % (AVATARS.length - 1));
+            if (idx2 >= idx1) idx2++;
+            return { p1: AVATARS[idx1], p2: AVATARS[idx2] };
+        }
+
+        function setupBattleScreen(state) {
+            const avatars = getAvatarsByRoomId(currentRoomId);
+
+            const p1Avatar = currentSeat === 1 ? avatars.p1 : avatars.p2;
+            const p2Avatar = currentSeat === 1 ? avatars.p2 : avatars.p1;
+
+            const p1Name = currentSeat === 1 ? state.player1_name : state.player2_name;
+            const p2Name = currentSeat === 1 ? state.player2_name : state.player1_name;
+
+            document.getElementById('p1-avatar').innerText = p1Avatar;
+            document.getElementById('p2-avatar').innerText = p2Avatar;
+            document.getElementById('p1-name').innerText = p1Name || '我方';
+            document.getElementById('p2-name').innerText = p2Name || '對手';
+
+            updateHUD(state);
+            loadNextQuestion();
+        }
+
+        function updateHUD(state) {
+            const myHp = currentSeat === 1 ? state.player1_hp : state.player2_hp;
+            const opHp = currentSeat === 1 ? state.player2_hp : state.player1_hp;
+
+            const myScore = currentSeat === 1 ? state.player1_score : state.player2_score;
+            const opScore = currentSeat === 1 ? state.player2_score : state.player1_score;
+
+            document.getElementById('p1-hp-fill').style.width = `${(myHp / 7) * 100}%`;
+            document.getElementById('p2-hp-fill').style.width = `${(opHp / 7) * 100}%`;
+
+            document.getElementById('p1-score').innerText = `得分: ${myScore}`;
+            document.getElementById('p2-score').innerText = `得分: ${opScore}`;
+        }
+
+        function triggerBattleFX(eventType, eventSeat) {
+            const battleScreen = document.getElementById('screen-battle');
+            const isMyAction = eventSeat === currentSeat;
+
+            if (eventType === 'hit') {
+                if (isMyAction) {
+                    showToast('🎯 答對了！命中對手！');
+                } else {
+                    showToast('💥 對手答對，遭到攻擊！');
+                    battleScreen.classList.add('shake', 'hit-flash');
+                    setTimeout(() => battleScreen.classList.remove('shake', 'hit-flash'), 400);
+                }
+            } else if (eventType === 'self_hit') {
+                if (isMyAction) {
+                    showToast('😅 答錯受傷，再接再厲！');
+                    battleScreen.classList.add('shake');
+                    setTimeout(() => battleScreen.classList.remove('shake'), 400);
+                }
+            }
+        }
+
+        // ==========================================
+        // 七、答題邏輯
+        // ==========================================
+        function loadNextQuestion() {
+            const q = QUESTION_BANK[Math.floor(Math.random() * QUESTION_BANK.length)];
+            
+            // 隨機打亂選項
+            const shuffledOptions = [...q.options];
+            const correctAnswerText = q.options[q.correctIndex];
+
+            for (let i = shuffledOptions.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffledOptions[i], shuffledOptions[j]] = [shuffledOptions[j], shuffledOptions[i]];
+            }
+
+            const newCorrectIndex = shuffledOptions.indexOf(correctAnswerText);
+
+            currentQuestion = {
+                question: q.question,
+                options: shuffledOptions,
+                correctIndex: newCorrectIndex
+            };
+
+            document.getElementById('question-text').innerText = currentQuestion.question;
+            const labels = ['A', 'B', 'C', 'D'];
+            shuffledOptions.forEach((opt, idx) => {
+                const btn = document.querySelectorAll('.option-btn')[idx];
+                document.getElementById(`opt-${idx}`).innerText = `${labels[idx]}. ${opt}`;
+                btn.disabled = false;
+            });
+        }
+
+        async function handleSelectAnswer(selectedIndex) {
+            // 防止重複連點
+            document.querySelectorAll('.option-btn').forEach(btn => btn.disabled = true);
+
+            const isCorrect = (selectedIndex === currentQuestion.correctIndex);
+
+            try {
+                await supabase.rpc('resolve_answer', {
+                    p_room_id: currentRoomId,
+                    p_client_token: clientToken,
+                    p_is_correct: isCorrect
+                });
+            } catch (err) {
+                console.error("resolve_answer error:", err);
+            } finally {
+                // 載入下一題
+                setTimeout(() => {
+                    if (latestGameState && latestGameState.status === 'playing') {
+                        loadNextQuestion();
+                    }
+                }, 600);
+            }
+        }
+
+        // ==========================================
+        // 八、結果畫面與清理
+        // ==========================================
+        function showResultModal(winnerSeat) {
+            const modal = document.getElementById('modal-result');
+            const icon = document.getElementById('result-icon');
+            const title = document.getElementById('result-title');
+            const desc = document.getElementById('result-desc');
+
+            const isWinner = winnerSeat === currentSeat;
+
+            if (isWinner) {
+                icon.innerText = '🏆';
+                title.innerText = '勝 利！';
+                title.className = 'result-title win';
+                desc.innerText = '太棒了！您展現了卓越的理化槓桿概念！';
+            } else {
+                icon.innerText = '💪';
+                title.innerText = '再接再厲！';
+                title.className = 'result-title lose';
+                desc.innerText = '差一點點就贏了！複習簡單機械概念後再挑戰吧！';
+            }
+
+            modal.classList.add('active');
+        }
+
+        function returnToLobby() {
+            document.getElementById('modal-result').classList.remove('active');
+            document.getElementById('modal-disconnect').classList.remove('active');
+            cleanupOldSession();
+            showScreen('lobby');
+            fetchLiveRooms();
+        }
+
+        function cleanupOldSession() {
+            stopHeartbeat();
+            if (disconnectTimer) {
+                clearTimeout(disconnectTimer);
+                disconnectTimer = null;
+            }
+            if (gameChannel) {
+                supabase.removeChannel(gameChannel);
+                gameChannel = null;
+            }
+            currentRoomId = null;
+            currentSeat = null;
+            opponentWasPresent = false;
+            lastEventId = 0;
+            latestGameState = null;
+        }
+
+        // 頁面關閉時嘗試取消房間
+        window.addEventListener('pagehide', () => {
+            if (currentSeat === 1 && currentScreen === 'waiting' && currentRoomId) {
+                fetch(`${SUPABASE_URL}/rest/v1/rpc/cancel_room`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'apikey': SUPABASE_PUBLISHABLE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`
+                    },
+                    body: JSON.stringify({
+                        p_room_id: currentRoomId,
+                        p_client_token: clientToken
+                    }),
+                    keepalive: true
+                });
+            }
+        });
+
+        function escapeHtml(str) {
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+    </script>
+</body>
+</html>
